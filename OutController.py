@@ -6,13 +6,13 @@ class ResizableQueue:
     '''
     Класс очереди, в которой можно изменять ее размер.
     '''
-    def __init__(self, size):
+    def __init__(self, size: int):
         self.queue = [None] * size
         self.front = 0
         self.rear = 0
         self.size = size
 
-    def push(self, item):
+    def push(self, item: tp.Optional[pd.DataFrame]):
         if self.is_full():
             self.front = (self.front + 1) % self.size
         self.queue[self.rear] = item
@@ -35,7 +35,7 @@ class ResizableQueue:
     def is_full(self):
         return self.front == self.rear and self.queue[self.front] is not None
 
-    def resize(self, new_size):
+    def resize(self, new_size: int):
         if new_size < len(self):
             for _ in range(len(self) - new_size):
                 self.pop()
@@ -201,17 +201,25 @@ class DataPreparingController(MyDataFrame):
                 cleaned_col = df[column].drop(to_remove)
                 df = df.loc[cleaned_col.index].copy()
                 df.reset_index(drop = True, inplace = True)
+            
+            self.data = df.copy()
+            return df
 
         except TypeError as e:
             print(e)
-
-
-        return df
     
-    def missing_values_table(
+
+    @classmethod
+    def missing_values_table(cls, df: tp.Optional[pd.DataFrame]):
+        if isinstance(pd.DataFrame, df):
+            DataPreparingController.__missing_values_table(df)
+        else:
+            DataPreparingController.__missing_values_table(cls.data)
+
+    def __missing_values_table(
         self,
         df: pd.DataFrame
-    ):
+    ) -> pd.DataFrame:
         '''
         Description:
             Метод вычисляет процент пропущенных значений в каждом столбце

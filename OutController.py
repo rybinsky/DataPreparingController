@@ -115,11 +115,11 @@ class DataPreparingController(MyDataFrame):
         except IndexError as e:
             print(e)
 
-
+    @classmethod
     def iqr_outliers_percent(
-        self,   
-        df: pd.DataFrame,
-        columns: tp.List[str], 
+        cls,   
+        df: tp.Optional[pd.DataFrame],
+        columns: tp.Union[str, tp.List[str]] = 'all', 
         threshold: tp.Union[int, float] = 10
     ) -> tp.List[str]:
         '''
@@ -129,11 +129,33 @@ class DataPreparingController(MyDataFrame):
         Args:
             df (pd.DataFrame): матрица признаков
             columns (list): колонки, из которых удалять выбросы
-            threshold (float): порог удаления выбросов из drop_cols
+            threshold (float): порог удаления выбросов из drop_cols в процентах
 
         Returns:
             drop_cols (list): список колонок, откуда можно удалить выбросы
         '''
+        try:
+            if threshold < 0 or threshold > 100:
+                raise ValueError(f"Неверное значение 'threshold' {threshold}, должно быть на интервале [0, 100]!")
+
+            if columns == 'all':
+                columns = df.columns
+
+            if isinstance(pd.DataFrame, df):
+                return DataPreparingController.__iqr_outliers_percent(df, columns, threshold)
+            elif df is None:
+                return DataPreparingController.__iqr_outliers_percent(cls.data, columns, threshold)
+            else:
+                raise TypeError("'df' должен быть либо None, либо pd.DataFrame")
+            
+        except TypeError as e:
+            print(e)
+        except ValueError as e:
+            print(e)
+        
+
+    def __iqr_outliers_percent(self, df, columns, threshold):
+
         drop_cols = []
         
         for col in columns:
@@ -152,13 +174,13 @@ class DataPreparingController(MyDataFrame):
         
         return drop_cols
     
-    
+    @classmethod
     def remove_outliers(
-        self,
-        df: pd.DataFrame,
-        columns: tp.List[str] = 'all',
+        cls, 
+        df: tp.Optional[pd.DataFrame],
+        columns: tp.Union[str, tp.List[str]] = 'all',
         threshold: tp.Union[int, float] = 1.5, 
-        drop_percent: tp.Union[int, float] = 100
+        drop_percent: tp.Union[int, float] = 100          
     ) -> pd.DataFrame:
         '''
         Description:
@@ -174,52 +196,57 @@ class DataPreparingController(MyDataFrame):
             df (pd.DataFrame): матрица признаков, очищенные от какой-то доли выбросов
         '''
         try:
-
             if threshold < 0:
                 raise ValueError(f"Неверное значение 'threshold' {threshold}, должно быть неотрицательным!")
             if drop_percent < 0 or drop_percent > 100:
                 raise ValueError(f"Неверное значение 'drop_persent' {drop_percent}, должно быть на промежутке [0, 100]")
-
-            self.__history.push(df.copy())
-
-            bounds = []
-            for column in columns:
-                q1 = df[column].quantile(0.25)
-                q3 = df[column].quantile(0.75)
-                iqr = q3 - q1
-                lower_bound = q1 - threshold * iqr
-                upper_bound = q3 + threshold * iqr
-                bounds.append((lower_bound, upper_bound))
-
-            for (lower_bound, upper_bound), column in zip(bounds, columns):
-
-                outliers = df[(df[column] < lower_bound) | (df[column] > upper_bound)][column]
-                outliers = outliers.sort_values()    
-                n_to_remove = int(len(outliers) * drop_percent / 100)
             
-                to_remove = outliers.head(n_to_remove).index.union(outliers.tail(n_to_remove).index)
-                cleaned_col = df[column].drop(to_remove)
-                df = df.loc[cleaned_col.index].copy()
-                df.reset_index(drop = True, inplace = True)
-            
-            self.data = df.copy()
-            return df
+            if columns == 'all':
+                columns = df.columns
 
+            if isinstance(pd.DataFrame, df):
+                return DataPreparingController.__remove_outliers(df, columns, threshold, drop_percent)
+            elif df is None:
+                return DataPreparingController.__remove_outliers(cls.data, columns, threshold, drop_percent)
+            else:
+                raise TypeError("'df' должен быть либо None, либо pd.DataFrame")
+            
         except TypeError as e:
             print(e)
-    
+        except ValueError as e:
+            print(e)
+
+
+    def __remove_outliers(self, df, columns, threshold, drop_percent):
+
+        self.__history.push(df.copy())
+
+        bounds = []
+        for column in columns:
+            q1 = df[column].quantile(0.25)
+            q3 = df[column].quantile(0.75)
+            iqr = q3 - q1
+            lower_bound = q1 - threshold * iqr
+            upper_bound = q3 + threshold * iqr
+            bounds.append((lower_bound, upper_bound))
+
+        for (lower_bound, upper_bound), column in zip(bounds, columns):
+
+            outliers = df[(df[column] < lower_bound) | (df[column] > upper_bound)][column]
+            outliers = outliers.sort_values()    
+            n_to_remove = int(len(outliers) * drop_percent / 100)
+            
+            to_remove = outliers.head(n_to_remove).index.union(outliers.tail(n_to_remove).index)
+            cleaned_col = df[column].drop(to_remove)
+            df = df.loc[cleaned_col.index].copy()
+            df.reset_index(drop = True, inplace = True)
+            
+        self.data = df.copy()
+        return df
+
 
     @classmethod
-    def missing_values_table(cls, df: tp.Optional[pd.DataFrame]):
-        if isinstance(pd.DataFrame, df):
-            DataPreparingController.__missing_values_table(df)
-        else:
-            DataPreparingController.__missing_values_table(cls.data)
-
-    def __missing_values_table(
-        self,
-        df: pd.DataFrame
-    ) -> pd.DataFrame:
+    def missing_values_table(cls, df: tp.Optional[pd.DataFrame]) -> pd.DataFrame:
         '''
         Description:
             Метод вычисляет процент пропущенных значений в каждом столбце
@@ -228,6 +255,19 @@ class DataPreparingController(MyDataFrame):
         Returns:
             mis_val_table_ren_columns (pd.DataFrame): матрица информации
         '''
+        try:
+            if isinstance(pd.DataFrame, df):
+                return DataPreparingController.__missing_values_table(df)
+            elif df is None:
+                return DataPreparingController.__missing_values_table(cls.data)
+            else:
+                raise TypeError("'df' должен быть либо None, либо pd.DataFrame")
+            
+        except TypeError as e:
+            print(e)
+
+    def __missing_values_table(self, df: pd.DataFrame):
+
         mis_val = df.isnull().sum()
         mis_val_percent = 100 * df.isnull().sum() / len(df)
         mis_val_table = pd.concat([mis_val, mis_val_percent], axis = 1)
@@ -245,9 +285,6 @@ class DataPreparingController(MyDataFrame):
     
 
 
-
-
-
 '''
 Я хочу изначально обернуть свой датасет в класс, затем иметь возможность:
 
@@ -261,5 +298,9 @@ class DataPreparingController(MyDataFrame):
 
     
 и ещё много-много всего
+
+
+Сделать:
+1) Вынос приватных методов в отдельный файл
 
 '''

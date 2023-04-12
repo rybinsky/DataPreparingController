@@ -47,24 +47,42 @@ class ResizableQueue:
 
     def __len__(self):
         return (self.rear - self.front + self.size) % self.size
+    
 
+class MyDataFrame(pd.DataFrame):
+    '''
+    Класс позволяет возвращать измененный pd.DataFrame
+    '''
+    def __setitem__(self, key, value) -> "MyDataFrame":
+        super().__setitem__(key, value)
+        return self  # возвращаем измененный DataFrame
+    
+    def __delitem__(self, key) -> "MyDataFrame":
+        super().__setitem__(key)
+        return self  # возвращаем измененный DataFrame
+    
 
-class DataPreparingController:
+class DataPreparingController(MyDataFrame):
     '''
     Этот класс помогает упрощать предобработку данных и
     делать из них статистические выводы.
     '''
     __MAX_HIST_SIZE = 10
 
-    data = None
+    data: pd.DataFrame = None
     __history = ResizableQueue(size = 5)
 
-    def __init__(
-        self,
-        data: tp.Union[pd.DataFrame, np.ndarray]
-    ):
-        self.data = data.copy()
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         
+    def __setitem__(self, key, value):
+        self.__history.push(self.data.copy())
+        self.data = super().__setitem__(key, value)
+
+    def __delitem__(self, key):
+        self.__history.push(self.data.copy())
+        self.data = super().__delitem__(key)
+
 
     def set_history_len(self, buffer_len: int):
         '''
@@ -75,7 +93,7 @@ class DataPreparingController:
             buffer_len (int): новая длина истории
         '''
         try:
-            if buffer_len > 10:
+            if buffer_len > self.__MAX_HIST_SIZE:
                 raise ValueError("Слишком большое значение!")
             else:
                 self.__history.resize(buffer_len)
@@ -100,16 +118,16 @@ class DataPreparingController:
 
     def iqr_outliers_percent(
         self,   
-        df: tp.Union[pd.DataFrame, np.ndarray],
+        df: pd.DataFrame,
         columns: tp.List[str], 
         threshold: tp.Union[int, float] = 10
     ) -> tp.List[str]:
         '''
         Description:
-            Выводит процент выбросов в столбцах columns матрицы признаков df
+            Метод выводит процент выбросов в столбцах columns матрицы признаков df
 
         Args:
-            df (pd.DataFrame, np.ndarray): матрица признаков
+            df (pd.DataFrame): матрица признаков
             columns (list): колонки, из которых удалять выбросы
             threshold (float): порог удаления выбросов из drop_cols
 
@@ -137,14 +155,14 @@ class DataPreparingController:
     
     def remove_outliers(
         self,
-        df: tp.Union[pd.DataFrame, np.ndarray],
+        df: pd.DataFrame,
         columns: tp.List[str] = 'all',
         threshold: tp.Union[int, float] = 1.5, 
         drop_percent: tp.Union[int, float] = 100
-    ) -> tp.Union[pd.DataFrame, np.ndarray]:
+    ) -> pd.DataFrame:
         '''
         Description:
-            Функция удаляет строки, в которых есть выбросы, определенные по методу Тьюки (межквартильное расстояние)
+            Метод удаляет строки, в которых есть выбросы, определенные по методу Тьюки (межквартильное расстояние)
 
         Args:
             df (pd.DataFrame): матрица признаков
@@ -190,6 +208,36 @@ class DataPreparingController:
 
         return df
     
+    def missing_values_table(
+        self,
+        df: pd.DataFrame
+    ):
+        '''
+        Description:
+            Метод вычисляет процент пропущенных значений в каждом столбце
+        Args:
+            df (pd.DataFrame): матрица признаков
+        Returns:
+            mis_val_table_ren_columns (pd.DataFrame): матрица информации
+        '''
+        mis_val = df.isnull().sum()
+        mis_val_percent = 100 * df.isnull().sum() / len(df)
+        mis_val_table = pd.concat([mis_val, mis_val_percent], axis = 1)
+        mis_val_table_ren_columns = mis_val_table.rename(
+        columns = {0 : 'Missing Values', 1 : '% of Total Values'})
+        mis_val_table_ren_columns = mis_val_table_ren_columns[
+            mis_val_table_ren_columns.iloc[:, 1] != 0].sort_values(
+            '% of Total Values', ascending = False).round(1)
+            
+        print ("Your selected dataframe has " + str(df.shape[1]) + " columns.\n"      
+                "There are " + str(mis_val_table_ren_columns.shape[0]) +
+                " columns that have missing values.")
+        
+        return mis_val_table_ren_columns
+    
+
+
+
 
 
 '''

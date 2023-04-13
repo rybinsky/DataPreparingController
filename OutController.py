@@ -9,8 +9,6 @@ import pandas as pd
 
 '''
 Мини-проект по созданию удобного предобработчика файлов
-
-Баринов Никита Андреевич, МФТИ, 2023
 '''
 
 def _iqr_outliers_percent(df: pd.DataFrame, columns, threshold):

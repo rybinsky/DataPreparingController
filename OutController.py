@@ -2,6 +2,54 @@ import typing as tp
 import numpy as np
 import pandas as pd
 
+# from utils import (
+#     _iqr_outliers_percent,
+#     _missing_values_table
+# )
+
+def _iqr_outliers_percent(df, columns, threshold):
+    '''
+    Приватная функция выводит процент выбросов в столбцах columns матрицы признаков df
+    '''
+    drop_cols = []
+    
+    for col in columns:
+        q1 = df[col].quantile(0.25)
+        q3 = df[col].quantile(0.75)
+        iqr = q3 - q1
+        lower_bound = q1 - 1.5 * iqr
+        upper_bound = q3 + 1.5 * iqr
+        outliers_count = df[(df[col] < lower_bound) | (df[col] > upper_bound)].shape[0]
+        total_count = df[col].shape[0]
+        outliers_percent = outliers_count / total_count * 100
+
+        if outliers_percent < threshold:
+            drop_cols.append(col)
+        print(f'{col}: {outliers_percent:.2f}%')
+    
+    return drop_cols
+
+
+def _missing_values_table(df: pd.DataFrame):
+    '''
+    Приватный вычисляет процент пропущенных значений в каждом столбце
+    '''
+    mis_val = df.isnull().sum()
+    mis_val_percent = 100 * df.isnull().sum() / len(df)
+    mis_val_table = pd.concat([mis_val, mis_val_percent], axis = 1)
+    mis_val_table_ren_columns = mis_val_table.rename(
+    columns = {0 : 'Missing Values', 1 : '% of Total Values'})
+    mis_val_table_ren_columns = mis_val_table_ren_columns[
+        mis_val_table_ren_columns.iloc[:, 1] != 0].sort_values(
+        '% of Total Values', ascending = False).round(1)
+        
+    print ("Your selected dataframe has " + str(df.shape[1]) + " columns.\n"      
+            "There are " + str(mis_val_table_ren_columns.shape[0]) +
+            " columns that have missing values.")
+    
+    return mis_val_table_ren_columns
+
+
 class ResizableQueue:
     '''
     Класс очереди, в которой можно изменять ее размер.
@@ -67,7 +115,7 @@ class DataPreparingController(MyDataFrame):
     Этот класс помогает упрощать предобработку данных и
     делать из них статистические выводы.
     '''
-    __MAX_HIST_SIZE = 10
+    __MAX_HISTORY_LEN = 10
 
     data: pd.DataFrame = None
     __history = ResizableQueue(size = 5)
@@ -93,8 +141,9 @@ class DataPreparingController(MyDataFrame):
             buffer_len (int): новая длина истории
         '''
         try:
-            if buffer_len > self.__MAX_HIST_SIZE:
-                raise ValueError("Слишком большое значение!")
+            if buffer_len > self.__MAX_HISTORY_LEN:
+                raise ValueError(f"Слишком большое значение {buffer_len}, \
+                                максимальная длина должна быть <={self.__MAX_HISTORY_LEN}!")
             else:
                 self.__history.resize(buffer_len)
                 print(f'Теперь будет храниться история на {self.__history.__len__()} шагов.')
@@ -136,43 +185,25 @@ class DataPreparingController(MyDataFrame):
         '''
         try:
             if threshold < 0 or threshold > 100:
-                raise ValueError(f"Неверное значение 'threshold' {threshold}, должно быть на интервале [0, 100]!")
-
-            if columns == 'all':
-                columns = df.columns
+                raise ValueError(f"Неверное значение 'threshold' {threshold}, \
+                                должно быть на интервале [0, 100]!")
 
             if isinstance(pd.DataFrame, df):
-                return DataPreparingController.__iqr_outliers_percent(df, columns, threshold)
+                if columns == 'all':
+                    columns = df.columns
+                return _iqr_outliers_percent(df, columns, threshold)
             elif df is None:
-                return DataPreparingController.__iqr_outliers_percent(cls.data, columns, threshold)
+                if columns == 'all':
+                    columns = cls.data.columns
+                return _iqr_outliers_percent(cls.data, columns, threshold)
             else:
-                raise TypeError("'df' должен быть либо None, либо pd.DataFrame")
+                raise TypeError("'df' должен быть либо None и метод должен вызываться от объекта класса, \
+                                либо pd.DataFrame и метод вызывается от имени класса")
             
         except TypeError as e:
             print(e)
         except ValueError as e:
             print(e)
-        
-
-    def __iqr_outliers_percent(self, df, columns, threshold):
-
-        drop_cols = []
-        
-        for col in columns:
-            q1 = df[col].quantile(0.25)
-            q3 = df[col].quantile(0.75)
-            iqr = q3 - q1
-            lower_bound = q1 - 1.5 * iqr
-            upper_bound = q3 + 1.5 * iqr
-            outliers_count = df[(df[col] < lower_bound) | (df[col] > upper_bound)].shape[0]
-            total_count = df[col].shape[0]
-            outliers_percent = outliers_count / total_count * 100
-
-            if outliers_percent < threshold:
-                drop_cols.append(col)
-            print(f'{col}: {outliers_percent:.2f}%')
-        
-        return drop_cols
     
     @classmethod
     def remove_outliers(
@@ -184,7 +215,8 @@ class DataPreparingController(MyDataFrame):
     ) -> pd.DataFrame:
         '''
         Description:
-            Метод удаляет строки, в которых есть выбросы, определенные по методу Тьюки (межквартильное расстояние)
+            Метод удаляет строки, в которых есть выбросы, \
+            определенные по методу Тьюки (межквартильное расстояние)
 
         Args:
             df (pd.DataFrame): матрица признаков
@@ -197,17 +229,20 @@ class DataPreparingController(MyDataFrame):
         '''
         try:
             if threshold < 0:
-                raise ValueError(f"Неверное значение 'threshold' {threshold}, должно быть неотрицательным!")
+                raise ValueError(f"Неверное значение 'threshold' {threshold}, \
+                                должно быть неотрицательным!")
             if drop_percent < 0 or drop_percent > 100:
-                raise ValueError(f"Неверное значение 'drop_persent' {drop_percent}, должно быть на промежутке [0, 100]")
-            
-            if columns == 'all':
-                columns = df.columns
+                raise ValueError(f"Неверное значение 'drop_persent' {drop_percent}, \
+                                должно быть на промежутке [0, 100]")
 
             if isinstance(pd.DataFrame, df):
-                return DataPreparingController.__remove_outliers(df, columns, threshold, drop_percent)
+                if columns == 'all':
+                    columns = df.columns
+                return DataPreparingController._remove_outliers(df, columns, threshold, drop_percent)
             elif df is None:
-                return DataPreparingController.__remove_outliers(cls.data, columns, threshold, drop_percent)
+                if columns == 'all':
+                    columns = cls.data.columns
+                return DataPreparingController._remove_outliers(cls.data, columns, threshold, drop_percent)
             else:
                 raise TypeError("'df' должен быть либо None, либо pd.DataFrame")
             
@@ -217,7 +252,7 @@ class DataPreparingController(MyDataFrame):
             print(e)
 
 
-    def __remove_outliers(self, df, columns, threshold, drop_percent):
+    def _remove_outliers(self, df, columns, threshold, drop_percent):
 
         self.__history.push(df.copy())
 
@@ -257,31 +292,14 @@ class DataPreparingController(MyDataFrame):
         '''
         try:
             if isinstance(pd.DataFrame, df):
-                return DataPreparingController.__missing_values_table(df)
+                return _missing_values_table(df)
             elif df is None:
-                return DataPreparingController.__missing_values_table(cls.data)
+                return _missing_values_table(cls.data)
             else:
                 raise TypeError("'df' должен быть либо None, либо pd.DataFrame")
             
         except TypeError as e:
             print(e)
-
-    def __missing_values_table(self, df: pd.DataFrame):
-
-        mis_val = df.isnull().sum()
-        mis_val_percent = 100 * df.isnull().sum() / len(df)
-        mis_val_table = pd.concat([mis_val, mis_val_percent], axis = 1)
-        mis_val_table_ren_columns = mis_val_table.rename(
-        columns = {0 : 'Missing Values', 1 : '% of Total Values'})
-        mis_val_table_ren_columns = mis_val_table_ren_columns[
-            mis_val_table_ren_columns.iloc[:, 1] != 0].sort_values(
-            '% of Total Values', ascending = False).round(1)
-            
-        print ("Your selected dataframe has " + str(df.shape[1]) + " columns.\n"      
-                "There are " + str(mis_val_table_ren_columns.shape[0]) +
-                " columns that have missing values.")
-        
-        return mis_val_table_ren_columns
     
 
 
@@ -302,5 +320,9 @@ class DataPreparingController(MyDataFrame):
 
 Сделать:
 1) Вынос приватных методов в отдельный файл
+
+2) Проверить, что везде копируется где надо, и где не надо нет
+
+3) Клиппинг
 
 '''

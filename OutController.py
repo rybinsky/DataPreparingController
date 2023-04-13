@@ -2,13 +2,8 @@ import typing as tp
 import numpy as np
 import pandas as pd
 
-# from utils import (
-#     _iqr_outliers_percent,
-#     _missing_values_table
-# )
-
 '''
-Мини-проект по созданию удобного предобработчика файлов
+Мини-проект по созданию удобного предобработчика данных
 '''
 
 def _iqr_outliers_percent(df: pd.DataFrame, columns, threshold):

@@ -7,6 +7,10 @@ import pandas as pd
 #     _missing_values_table
 # )
 
+'''
+Мини-проект по созданию удобного предобработчика файлов
+'''
+
 def _iqr_outliers_percent(df: pd.DataFrame, columns, threshold):
     '''
     Приватная функция выводит процент выбросов в столбцах columns матрицы признаков df

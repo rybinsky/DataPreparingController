@@ -31,9 +31,11 @@ dpc.data.drop('c', axis=1, inplace=True)
 print('========================================6')
 dpc.data['yyy'] = [2, 2, 2]
 print('========================================7')
-del dpc.data['a']
+dpc.data.drop('a', axis=1, inplace=True)
 print('========================================8')
 dpc.history.print_dll()
+print(dpc.data)
+dpc._rollback()
 print(dpc.data)
 dpc._rollback()
 print(dpc.data)

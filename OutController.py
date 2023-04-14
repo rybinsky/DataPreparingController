@@ -196,9 +196,9 @@ class DataPreparingController(NewDataFrame):
         #print(f'__setattr__ {name} : {value} DPC')
         super().__setattr__(name, value)
 
-    def __getattribute__(self, name):
-        #print('__getattribute__ DPC__:', name)
-        return super().__getattribute__(name)
+    # def __getattribute__(self, name):
+    #     #print('__getattribute__ DPC__:', name)
+    #     return super().__getattribute__(name)
    
 
     def set_history_len(self, buffer_len: int):
@@ -237,11 +237,15 @@ class DataPreparingController(NewDataFrame):
                 self.data[key] = value
             elif method == '__setattr__':
                 name, value = args
-                self.name = value
+                if name == 'data':
+                    self.data = value
+                else:
+                    raise AttributeError(f"Неизвестный аттрибут :{name} !")
 
         except IndexError as e:
             print(e)
-
+        except AttributeError as e:
+            print(e)
         
 
     @classmethod

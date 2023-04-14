@@ -205,22 +205,22 @@ class DataPreparingController(MyDataFrame):
         self.data = MyDataFrame(data)
 
     def __setattr__(self, name, value):
-        print(f'__setattr__ {name} : {value} DPC//////')
+        #print(f'__setattr__ {name} : {value} DPC')
         super().__setattr__(name, value)
 
     def __getattribute__(self, name):
-        print('__getattr__ DPC__:', name)
+        #print('__getattribute__ DPC__:', name)
         return super().__getattribute__(name)
    
-    def __setitem__(self, key, value):
-        print('__setitem__ DPC')
-        self.history.push(self.data.copy())
-        self.data = super().__setitem__(key, value)
+    # def __setitem__(self, key, value):
+    #     print('__setitem__ DPC')
+    #     self.history.push(self.data.copy())
+    #     self.data = super().__setitem__(key, value)
 
-    def __delitem__(self, key):
-        print('__set_item__ DPC')
-        self.history.push(self.data.copy())
-        self.data = super().__delitem__(key)
+    # def __delitem__(self, key):
+    #     print('__set_item__ DPC')
+    #     self.history.push(self.data.copy())
+    #     self.data = super().__delitem__(key)
 
 
     def set_history_len(self, buffer_len: int):

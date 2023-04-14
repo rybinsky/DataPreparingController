@@ -29,7 +29,7 @@ dpc.data.iloc[1, 1] = 100
 print('========================================5')
 dpc.data.drop('c', axis=1, inplace=True)
 print('========================================6')
-dpc.data['dick'] = [228, 228, 228]
+dpc.data['yyy'] = [2, 2, 2]
 print('========================================7')
 dpc.history.print_dll()
 

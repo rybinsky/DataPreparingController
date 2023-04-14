@@ -3,6 +3,8 @@ import numpy as np
 import pandas as pd
 import copy
 
+DEFAULT_HISTORY_LEN = 5
+
 
 def _iqr_outliers_percent(df: pd.DataFrame, columns, threshold):
     '''
@@ -155,12 +157,11 @@ class NewDataFrame(pd.DataFrame):
     '''
     Класс позволяет возвращать измененный pd.DataFrame
     '''
-    history = DoublyLinkedList(max_size = 5)
+    history = DoublyLinkedList(max_size = DEFAULT_HISTORY_LEN)
 
     def __init__(self, *args, **kwargs):
         print('__init__NewDF')
         super().__init__(*args, **kwargs)
-        #self.history = DoublyLinkedList(max_size = 3)
 
     def __setattr__(self, name, value):
         print(f'__setattr__: {name} : {value}')
@@ -194,12 +195,7 @@ class DataPreparingController(NewDataFrame):
 
     def __setattr__(self, name, value):
         #print(f'__setattr__ {name} : {value} DPC')
-        super().__setattr__(name, value)
-
-    # def __getattribute__(self, name):
-    #     #print('__getattribute__ DPC__:', name)
-    #     return super().__getattribute__(name)
-   
+        super().__setattr__(name, value)   
 
     def set_history_len(self, buffer_len: int):
         '''

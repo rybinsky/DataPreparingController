@@ -72,7 +72,7 @@ class DoublyLinkedList:
         self.size -= 1
         return removed_node.value
 
-    def __rpop(self):
+    def rpop(self):
         if self.is_empty():
             raise Exception("Список пуст!")
         removed_node = self.tail

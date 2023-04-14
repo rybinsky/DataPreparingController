@@ -16,28 +16,28 @@ class NewDataFrame(pd.DataFrame):
     '''
     Класс позволяет возвращать измененный pd.DataFrame
     '''
-    history = DoublyLinkedList(max_size = DEFAULT_HISTORY_LEN)
+    _history = DoublyLinkedList(max_size = DEFAULT_HISTORY_LEN)
 
     def __init__(self, *args, **kwargs):
-        print('__init__NewDF')
+        #print('__init__NewDF')
         super().__init__(*args, **kwargs)
 
     def __setattr__(self, name, value):
-        print(f'__setattr__: {name} : {value}')
-        self._save_history('__setattr__', name, value)
+        #print(f'__setattr__: {name} : {value}')
+        self.__save_history('__setattr__', name, value)
         super().__setattr__(name, value)
 
     def __setitem__(self, key, value):
-        print(f'__setitem__: {key} : {value}')
-        self._save_history('__setitem__', key, value)
+        #print(f'__setitem__: {key} : {value}')
+        self.__save_history('__setitem__', key, value)
         super().__setitem__(key, value)
 
     def __delitem__(self, key):
-        self._save_history('__delitem__', key)
+        self.__save_history('__delitem__', key)
         super().__delitem__(key)
 
-    def _save_history(self, method_name, *args):
-        self.history.push((method_name, *copy.deepcopy(args)))
+    def __save_history(self, method_name, *args):
+        self._history.push((method_name, *copy.deepcopy(args)))
 
 
 class DataPreparingController(NewDataFrame):
@@ -47,7 +47,7 @@ class DataPreparingController(NewDataFrame):
     '''
     __MAX_HISTORY_LEN = 10
     data : NewDataFrame = None
-
+    
     def __init__(self, data: pd.DataFrame):
         self.data = NewDataFrame(data)
 
@@ -68,7 +68,7 @@ class DataPreparingController(NewDataFrame):
                 raise ValueError(f"Слишком большое значение {buffer_len}, \
                                 максимальная длина должна быть <={self.__MAX_HISTORY_LEN}!")
             else:
-                self.history.resize(buffer_len)
+                self._history.resize(buffer_len)
                 print(f'Теперь будет храниться история на {self.__history.__len__()} шагов.')
         except ValueError as e:
             print(e)
@@ -79,10 +79,10 @@ class DataPreparingController(NewDataFrame):
             Откат последней продецуры изменения данных
         '''
         try:
-            print('_rollback :', )
-            if self.history.is_empty():
+            #print('_rollback__')
+            if self._history.is_empty():
                 raise IndexError('Нет истории, чтобы сделать возврат!')
-            method, *args = self.history.pop()
+            method, *args = self._history.rpop()
             if method == '__setitem__':
                 key, old_value = args
                 self.data[key] = old_value
@@ -91,7 +91,7 @@ class DataPreparingController(NewDataFrame):
                 self.data[key] = value
             elif method == '__setattr__':
                 name, value = args
-                if name == 'data':
+                if name == '_mgr':
                     self.data = value
                 else:
                     raise AttributeError(f"Неизвестный аттрибут :{name} !")
@@ -172,7 +172,6 @@ class DataPreparingController(NewDataFrame):
                 raise ValueError(f"Неверное значение 'drop_persent' {drop_percent}, \
                                 должно быть на промежутке [0, 100]")
 
-            self.history.push(df.copy())
 
             bounds = []
             for column in columns:
@@ -223,8 +222,7 @@ class DataPreparingController(NewDataFrame):
             print(e)
 
     def _print_history(self):
-        print(1)
-        self.history.print_dll()
+        self._history.print_dll()
     
 
 

@@ -157,8 +157,22 @@ class DoublyLinkedList:
         while current_node:
             print(current_node.value)
             current_node = current_node.next
-
-    
+'''
+aelfapfokapofekapoefk
+aokef[ekafa
+efo
+afkoaoekfaoefoka
+efkoa
+ef[oa[
+    kefo[
+        akf[ka
+        fe[k
+        aef
+        [akoef
+        aef]]
+    ]
+]]]
+'''
 
 class MyDataFrame(pd.DataFrame):
     '''

@@ -155,7 +155,7 @@ class NewDataFrame(pd.DataFrame):
     '''
     Класс позволяет возвращать измененный pd.DataFrame
     '''
-    history = DoublyLinkedList(max_size = 3)
+    history = DoublyLinkedList(max_size = 5)
 
     def __init__(self, *args, **kwargs):
         print('__init__NewDF')
@@ -179,6 +179,7 @@ class NewDataFrame(pd.DataFrame):
     def _save_history(self, method_name, *args):
         self.history.push((method_name, *copy.deepcopy(args)))
 
+
     
 class DataPreparingController(NewDataFrame):
     '''
@@ -186,8 +187,7 @@ class DataPreparingController(NewDataFrame):
     делать из них статистические выводы.
     '''
     __MAX_HISTORY_LEN = 10
-
-    data: NewDataFrame = None
+    data : NewDataFrame = None
 
     def __init__(self, data: pd.DataFrame):
         self.data = NewDataFrame(data)
@@ -200,16 +200,6 @@ class DataPreparingController(NewDataFrame):
         #print('__getattribute__ DPC__:', name)
         return super().__getattribute__(name)
    
-    # def __setitem__(self, key, value):
-    #     print('__setitem__ DPC')
-    #     self.history.push(self.data.copy())
-    #     self.data = super().__setitem__(key, value)
-
-    # def __delitem__(self, key):
-    #     print('__set_item__ DPC')
-    #     self.history.push(self.data.copy())
-    #     self.data = super().__delitem__(key)
-
 
     def set_history_len(self, buffer_len: int):
         '''
@@ -228,20 +218,31 @@ class DataPreparingController(NewDataFrame):
                 print(f'Теперь будет храниться история на {self.__history.__len__()} шагов.')
         except ValueError as e:
             print(e)
-        
 
-    def сallback(self):
+    def _rollback(self):
         '''
         Description:
             Откат последней продецуры изменения данных
         '''
         try:
-            if self.history.is_empty:
+            print('_rollback :', )
+            if self.history.is_empty():
                 raise IndexError('Нет истории, чтобы сделать возврат!')
-            self.data = self.history.pop()
+            method, *args = self.history.pop()
+            if method == '__setitem__':
+                key, old_value = args
+                self.data[key] = old_value
+            elif method == '__delitem__':
+                key, value = args
+                self.data[key] = value
+            elif method == '__setattr__':
+                name, value = args
+                self.name = value
 
         except IndexError as e:
             print(e)
+
+        
 
     @classmethod
     def iqr_outliers_percent(

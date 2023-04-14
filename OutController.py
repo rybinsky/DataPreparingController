@@ -1,9 +1,15 @@
 import typing as tp
 import numpy as np
 import pandas as pd
+import copy
+
+# from utils import (
+#     _iqr_outliers_percent,
+#     _missing_values_table
+# )
 
 '''
-Мини-проект по созданию удобного предобработчика данных
+Мини-проект по созданию удобного предобработчика файлов
 '''
 
 def _iqr_outliers_percent(df: pd.DataFrame, columns, threshold):
@@ -57,6 +63,7 @@ class Node:
 
 class DoublyLinkedList:
     def __init__(self, max_size = 5):
+        print('__init__ DLL')
         try:
             if max_size <= 0:
                 raise ValueError(f"'max_size' должен быть больше 0")
@@ -89,6 +96,7 @@ class DoublyLinkedList:
             print(e)
 
     def push(self, value):
+        print('push DLL')
         new_node = Node(value)
         if self.size == self.max_size:
             self.tail.next = new_node
@@ -106,6 +114,7 @@ class DoublyLinkedList:
             self.size += 1
 
     def pop(self):
+        print('pop DLL')
         if self.is_empty():
             raise Exception("Список пуст!")
         removed_node = self.head
@@ -133,6 +142,7 @@ class DoublyLinkedList:
         '''
         Изменяет МАКСИМАЛЬНЫЙ допустимый размер списка
         '''
+        print('resize DLL')
         if self.size < new_max_size:
             pass
         elif self.size > new_max_size:
@@ -142,9 +152,10 @@ class DoublyLinkedList:
         self.max_size = new_max_size
 
     def print_dll(self):
+        print('print DLL')
         current_node = self.head
         while current_node:
-            print(current_node.value, '-> ', end = '')
+            print(current_node.value)
             current_node = current_node.next
 
     
@@ -153,15 +164,31 @@ class MyDataFrame(pd.DataFrame):
     '''
     Класс позволяет возвращать измененный pd.DataFrame
     '''
-    def __setitem__(self, key, value) -> "MyDataFrame":
-        super().__setitem__(key, value)
-        return self  # возвращаем измененный DataFrame
-    
-    def __delitem__(self, key) -> "MyDataFrame":
-        super().__setitem__(key)
-        return self  # возвращаем измененный DataFrame
-    
+    history = DoublyLinkedList(max_size = 3)
 
+    def __init__(self, *args, **kwargs):
+        print('__init__ MyDF')
+        super().__init__(*args, **kwargs)
+        #self.history = DoublyLinkedList(max_size = 3)
+
+    def __setattr__(self, name, value):
+        print(f'__setattr__: {name} : {value}')
+        self._save_history('__setattr__', name, value)
+        super().__setattr__(name, value)
+
+    def __setitem__(self, key, value):
+        print(f'__setitem__: {key} : {value}')
+        self._save_history('__setitem__', key, value)
+        super().__setitem__(key, value)
+
+    def __delitem__(self, key):
+        self._save_history('__delitem__', key)
+        super().__delitem__(key)
+
+    def _save_history(self, method_name, *args):
+        self.history.push((method_name, *copy.deepcopy(args)))
+
+    
 class DataPreparingController(MyDataFrame):
     '''
     Этот класс помогает упрощать предобработку данных и
@@ -169,18 +196,30 @@ class DataPreparingController(MyDataFrame):
     '''
     __MAX_HISTORY_LEN = 10
 
-    data: pd.DataFrame = None
-    __history = DoublyLinkedList(max_size = 5)
+    data: MyDataFrame = None
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        
+    # def __init__(self, *args, **kwargs):
+    #     super().__init__(*args, **kwargs)
+
+    def __init__(self, data: pd.DataFrame):
+        self.data = MyDataFrame(data)
+
+    def __setattr__(self, name, value):
+        print(f'__setattr__ {name} : {value} DPC//////')
+        super().__setattr__(name, value)
+
+    def __getattribute__(self, name):
+        print('__getattr__ DPC__:', name)
+        return super().__getattribute__(name)
+   
     def __setitem__(self, key, value):
-        self.__history.push(self.data.copy())
+        print('__setitem__ DPC')
+        self.history.push(self.data.copy())
         self.data = super().__setitem__(key, value)
 
     def __delitem__(self, key):
-        self.__history.push(self.data.copy())
+        print('__set_item__ DPC')
+        self.history.push(self.data.copy())
         self.data = super().__delitem__(key)
 
 
@@ -197,7 +236,7 @@ class DataPreparingController(MyDataFrame):
                 raise ValueError(f"Слишком большое значение {buffer_len}, \
                                 максимальная длина должна быть <={self.__MAX_HISTORY_LEN}!")
             else:
-                self.__history.resize(buffer_len)
+                self.history.resize(buffer_len)
                 print(f'Теперь будет храниться история на {self.__history.__len__()} шагов.')
         except ValueError as e:
             print(e)
@@ -209,9 +248,9 @@ class DataPreparingController(MyDataFrame):
             Откат последней продецуры изменения данных
         '''
         try:
-            if self.__history.is_empty:
+            if self.history.is_empty:
                 raise IndexError('Нет истории, чтобы сделать возврат!')
-            self.data = self.__history.pop()
+            self.data = self.history.pop()
 
         except IndexError as e:
             print(e)
@@ -286,7 +325,7 @@ class DataPreparingController(MyDataFrame):
                 raise ValueError(f"Неверное значение 'drop_persent' {drop_percent}, \
                                 должно быть на промежутке [0, 100]")
 
-            self.__history.push(df.copy())
+            self.history.push(df.copy())
 
             bounds = []
             for column in columns:
@@ -335,6 +374,10 @@ class DataPreparingController(MyDataFrame):
             
         except TypeError as e:
             print(e)
+
+    def _print_history(self):
+        print(1)
+        self.history.print_dll()
     
 
 

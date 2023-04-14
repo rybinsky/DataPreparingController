@@ -3,14 +3,6 @@ import numpy as np
 import pandas as pd
 import copy
 
-# from utils import (
-#     _iqr_outliers_percent,
-#     _missing_values_table
-# )
-
-'''
-Мини-проект по созданию удобного предобработчика файлов
-'''
 
 def _iqr_outliers_percent(df: pd.DataFrame, columns, threshold):
     '''
@@ -63,7 +55,7 @@ class Node:
 
 class DoublyLinkedList:
     def __init__(self, max_size = 5):
-        print('__init__ DLL')
+        #print('__init__ DLL')
         try:
             if max_size <= 0:
                 raise ValueError(f"'max_size' должен быть больше 0")
@@ -96,7 +88,7 @@ class DoublyLinkedList:
             print(e)
 
     def push(self, value):
-        print('push DLL')
+        #print('push DLL')
         new_node = Node(value)
         if self.size == self.max_size:
             self.tail.next = new_node
@@ -114,7 +106,7 @@ class DoublyLinkedList:
             self.size += 1
 
     def pop(self):
-        print('pop DLL')
+        #print('pop DLL')
         if self.is_empty():
             raise Exception("Список пуст!")
         removed_node = self.head
@@ -142,7 +134,7 @@ class DoublyLinkedList:
         '''
         Изменяет МАКСИМАЛЬНЫЙ допустимый размер списка
         '''
-        print('resize DLL')
+        #print('resize DLL')
         if self.size < new_max_size:
             pass
         elif self.size > new_max_size:
@@ -152,21 +144,21 @@ class DoublyLinkedList:
         self.max_size = new_max_size
 
     def print_dll(self):
-        print('print DLL')
+        #print('print DLL')
         current_node = self.head
         while current_node:
             print(current_node.value)
             current_node = current_node.next
 
 
-class MyDataFrame(pd.DataFrame):
+class NewDataFrame(pd.DataFrame):
     '''
     Класс позволяет возвращать измененный pd.DataFrame
     '''
     history = DoublyLinkedList(max_size = 3)
 
     def __init__(self, *args, **kwargs):
-        print('__init__ MyDF')
+        print('__init__NewDF')
         super().__init__(*args, **kwargs)
         #self.history = DoublyLinkedList(max_size = 3)
 
@@ -188,20 +180,17 @@ class MyDataFrame(pd.DataFrame):
         self.history.push((method_name, *copy.deepcopy(args)))
 
     
-class DataPreparingController(MyDataFrame):
+class DataPreparingController(NewDataFrame):
     '''
     Этот класс помогает упрощать предобработку данных и
     делать из них статистические выводы.
     '''
     __MAX_HISTORY_LEN = 10
 
-    data: MyDataFrame = None
-
-    # def __init__(self, *args, **kwargs):
-    #     super().__init__(*args, **kwargs)
+    data: NewDataFrame = None
 
     def __init__(self, data: pd.DataFrame):
-        self.data = MyDataFrame(data)
+        self.data = NewDataFrame(data)
 
     def __setattr__(self, name, value):
         #print(f'__setattr__ {name} : {value} DPC')

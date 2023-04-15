@@ -20,7 +20,7 @@ class NewDataFrame(pd.DataFrame):
     _history = DoublyLinkedList(max_size = DEFAULT_HISTORY_LEN)
 
     def __init__(self, *args, **kwargs):
-        print('__init__NewDF')
+        #print('__init__NewDF')
         super().__init__(*args, **kwargs)
 
     def __setattr__(self, name, value):
@@ -33,17 +33,15 @@ class NewDataFrame(pd.DataFrame):
     def __setitem__(self, key, value):
         caller = inspect.stack()[1][3]
         print(f'__setitem__: {key} : {value}')
-        print(self)
         if caller != '_rollback':
             new = not key in self.columns.values
             history_value = value if new else self.loc[:, key].values
-            print(f'history_value = {history_value}')
+            #print(f'history_value = {history_value}')
             self.__save_history('__setitem__', key, history_value, new)
         super().__setitem__(key, value)
 
     def __getitem__(self, key):
         print(f'__getitem__ : {key}')
-        print(self)
         return super().__getitem__(key)
 
     def __delitem__(self, key):
@@ -61,21 +59,18 @@ class NewDataFrame(pd.DataFrame):
         columns = None, 
         level = None, 
         inplace = False,
-        errors='raise'
+        errors = 'raise'
     ):
         print(f'__drop__ NewDF: labels = {labels}, axis = {axis}, columns = {columns}', inspect.stack()[1][3])
-        #Сохраняем индексы удаляемых строк
         caller = inspect.stack()[1][3]
         try:
             if axis == 0:
                 raise ValueError(f"Пока не реализовано удаление строк!")
         
             elif axis == 1:
-                print(self.loc[:, columns].values)
                 if caller != '_rollback':
                     self.__save_history('__drop__', columns, self.loc[:, columns].copy())
-            # # Вызываем исходный метод drop()
-            super().drop(labels=labels, axis=axis, index=index, columns=columns, level=level, inplace=inplace, errors=errors)
+            super().drop(labels = labels, axis = axis, index = index, columns = columns, level = level, inplace = inplace, errors = errors)
         except ValueError as e:
             print(e)
     
@@ -96,7 +91,7 @@ class DataPreparingController(NewDataFrame):
         self.data = NewDataFrame(data)
 
     def __setattr__(self, name, value):
-        print(f'__setattr__ {name} : {value} DPC')
+        #print(f'__setattr__ {name} : {value} DPC')
         super().__setattr__(name, value)   
 
     def set_history_len(self, buffer_len: int):
@@ -124,7 +119,7 @@ class DataPreparingController(NewDataFrame):
         '''
         try:
             print('_rollback :')
-            if self._history.is_empty():
+            if self._history.is_empty() or self._history.__len__() == 1:
                 raise IndexError('Нет истории, чтобы сделать возврат!')
             method, *args = self._history.rpop()
             if method == '__setitem__':
@@ -196,7 +191,7 @@ class DataPreparingController(NewDataFrame):
     
     def remove_outliers(
         self, 
-        df: pd.DataFrame,
+        df: tp.Optional[NewDataFrame],
         columns: tp.Union[str, tp.List[str]] = 'all',
         threshold: tp.Union[int, float] = 1.5, 
         drop_percent: tp.Union[int, float] = 100          
@@ -222,28 +217,40 @@ class DataPreparingController(NewDataFrame):
             if drop_percent < 0 or drop_percent > 100:
                 raise ValueError(f"Неверное значение 'drop_persent' {drop_percent}, \
                                 должно быть на промежутке [0, 100]")
+            #print(1)
+            if not isinstance(df, NewDataFrame):
+                df = self.data.copy()
+            df = pd.DataFrame(df)
 
-
+            if columns == 'all':
+                columns = df.columns
+            #print(2)
+            cleaned_indexes = []
             bounds = []
             for column in columns:
+                #print(3, column)
                 q1 = df[column].quantile(0.25)
                 q3 = df[column].quantile(0.75)
                 iqr = q3 - q1
                 lower_bound = q1 - threshold * iqr
                 upper_bound = q3 + threshold * iqr
                 bounds.append((lower_bound, upper_bound))
-
+            print(4, type(df), cleaned_indexes, bounds)
             for (lower_bound, upper_bound), column in zip(bounds, columns):
-
+                print(1)
                 outliers = df[(df[column] < lower_bound) | (df[column] > upper_bound)][column]
                 outliers = outliers.sort_values()    
                 n_to_remove = int(len(outliers) * drop_percent / 100)
                 
                 to_remove = outliers.head(n_to_remove).index.union(outliers.tail(n_to_remove).index)
-                cleaned_col = df[column].drop(to_remove)
-                df = df.loc[cleaned_col.index].copy()
-                df.reset_index(drop = True, inplace = True)
-                
+                #cleaned_col = df[column].drop(to_remove)
+                cleaned_indexes.append(to_remove)
+                #df = df.loc[cleaned_col.index].copy()
+                #df.reset_index(drop = True, inplace = True)
+            
+            self._history.push('_-remove_out__', df.loc[cleaned_indexes].copy())
+            df = df.drop(labels = cleaned_indexes, axis = 0)
+            df.reset_index(drop = True, inplace = True)
             self.data = df.copy()
             return df
             

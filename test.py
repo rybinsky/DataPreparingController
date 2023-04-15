@@ -64,25 +64,19 @@ import pandas as pd
 
 import pandas as pd
 
-class MyDataFrame(pd.DataFrame):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+class MySeries(pd.Series):
+    def __iadd__(self, other):
+        print(f"Previous value: {self}")
+        result = super().__iadd__(other)
+        print(f"New value: {result}")
+        return result
 
-    def drop(self, labels=None, axis=0, index=None, columns=None, level=None, inplace=False, errors='raise'):
-        if labels is not None:
-            # Сохраняем данные, которые удаляем
-            data_to_drop = self.loc[:, labels]
-            print("Удаляем следующие данные:")
-            print(data_to_drop)
-        
-        # Вызываем базовый метод drop
-        super().drop(labels=labels, axis=axis, index=index, columns=columns, level=level, inplace=inplace, errors=errors)
-        
-        if inplace is not True:
-            return self
+df = pd.DataFrame({'A': [1, 2, 3], 'B': [4, 5, 6]})
+print(df)
 
-df = MyDataFrame({'A': [0, 1, 2], 'B': [3, 4, 5], 'C': [6, 7, 8]})
-df.drop(['A', 'B'], axis=1)
+df['A']
+
+
 
 
 

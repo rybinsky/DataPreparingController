@@ -33,13 +33,17 @@ class NewDataFrame(pd.DataFrame):
     def __setitem__(self, key, value):
         caller = inspect.stack()[1][3]
         print(f'__setitem__: {key} : {value}')
-
+        print(self)
         if caller != '_rollback':
-            self.__save_history('__setitem__', key, value, not key in self.columns.values)
+            new = not key in self.columns.values
+            history_value = value if new else self.loc[:, key].values
+            print(f'history_value = {history_value}')
+            self.__save_history('__setitem__', key, history_value, new)
         super().__setitem__(key, value)
 
     def __getitem__(self, key):
         print(f'__getitem__ : {key}')
+        print(self)
         return super().__getitem__(key)
 
     def __delitem__(self, key):
@@ -47,6 +51,7 @@ class NewDataFrame(pd.DataFrame):
         if caller != '_rollback':
             self.__save_history('__delitem__', key,)
         super().__delitem__(key)
+
 
     def drop(
         self, 
@@ -293,5 +298,13 @@ class DataPreparingController(NewDataFrame):
 2) Проверить, что везде копируется где надо, и где не надо нет
 
 3) Клиппинг
+
+Операции:
+
+df[col] = new_col
+
+df.drop(колонки)
+
+
 
 '''

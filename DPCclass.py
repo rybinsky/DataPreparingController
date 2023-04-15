@@ -2,6 +2,7 @@ import typing as tp
 import numpy as np
 import pandas as pd
 import copy
+import inspect
 
 from utils import (
     _iqr_outliers_percent,
@@ -19,22 +20,60 @@ class NewDataFrame(pd.DataFrame):
     _history = DoublyLinkedList(max_size = DEFAULT_HISTORY_LEN)
 
     def __init__(self, *args, **kwargs):
-        #print('__init__NewDF')
+        print('__init__NewDF')
         super().__init__(*args, **kwargs)
 
     def __setattr__(self, name, value):
-        #print(f'__setattr__: {name} : {value}')
-        self.__save_history('__setattr__', name, value)
+        caller = inspect.stack()[1][3]
+        print(f'__setattr__: {name} : {value}, ')
+        if name != '_mgr' and caller != '_rollback':
+            self.__save_history('__setattr__', name, value)
         super().__setattr__(name, value)
 
     def __setitem__(self, key, value):
-        #print(f'__setitem__: {key} : {value}')
-        self.__save_history('__setitem__', key, value)
+        caller = inspect.stack()[1][3]
+        print(f'__setitem__: {key} : {value}')
+
+        if caller != '_rollback':
+            self.__save_history('__setitem__', key, value, not key in self.columns.values)
         super().__setitem__(key, value)
 
+    def __getitem__(self, key):
+        print(f'__getitem__ : {key}')
+        return super().__getitem__(key)
+
     def __delitem__(self, key):
-        self.__save_history('__delitem__', key)
+        caller = inspect.stack()[1][3]
+        if caller != '_rollback':
+            self.__save_history('__delitem__', key,)
         super().__delitem__(key)
+
+    def drop(
+        self, 
+        labels = None, 
+        axis = 1, 
+        index = None, 
+        columns = None, 
+        level = None, 
+        inplace = False,
+        errors='raise'
+    ):
+        print(f'__drop__ NewDF: labels = {labels}, axis = {axis}, columns = {columns}', inspect.stack()[1][3])
+        #Сохраняем индексы удаляемых строк
+        caller = inspect.stack()[1][3]
+        try:
+            if axis == 0:
+                raise ValueError(f"Пока не реализовано удаление строк!")
+        
+            elif axis == 1:
+                print(self.loc[:, columns].values)
+                if caller != '_rollback':
+                    self.__save_history('__drop__', columns, self.loc[:, columns].copy())
+            # # Вызываем исходный метод drop()
+            super().drop(labels=labels, axis=axis, index=index, columns=columns, level=level, inplace=inplace, errors=errors)
+        except ValueError as e:
+            print(e)
+    
 
     def __save_history(self, method_name, *args):
         self._history.push((method_name, *copy.deepcopy(args)))
@@ -52,7 +91,7 @@ class DataPreparingController(NewDataFrame):
         self.data = NewDataFrame(data)
 
     def __setattr__(self, name, value):
-        #print(f'__setattr__ {name} : {value} DPC')
+        print(f'__setattr__ {name} : {value} DPC')
         super().__setattr__(name, value)   
 
     def set_history_len(self, buffer_len: int):
@@ -79,22 +118,29 @@ class DataPreparingController(NewDataFrame):
             Откат последней продецуры изменения данных
         '''
         try:
-            #print('_rollback__')
+            print('_rollback :')
             if self._history.is_empty():
                 raise IndexError('Нет истории, чтобы сделать возврат!')
             method, *args = self._history.rpop()
             if method == '__setitem__':
-                key, old_value = args
-                self.data[key] = old_value
+                key, old_value, new = args
+                if new:
+                    self.data.drop(columns = key, axis = 1, inplace = True)
+                else:
+                    self.data[key] = old_value
+
             elif method == '__delitem__':
                 key, value = args
                 self.data[key] = value
             elif method == '__setattr__':
                 name, value = args
-                if name == '_mgr':
+                if name == 'data':
                     self.data = value
                 else:
                     raise AttributeError(f"Неизвестный аттрибут :{name} !")
+            elif method == '__drop__':
+                columns, values = args
+                self.data[columns] = values
 
         except IndexError as e:
             print(e)

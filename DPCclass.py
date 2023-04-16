@@ -13,7 +13,6 @@ from utils import (
 
 DEFAULT_HISTORY_LEN = 5
 
-
 class NewDataFrame(pd.DataFrame):
     '''
     Класс позволяет возвращать измененный pd.DataFrame
@@ -44,20 +43,14 @@ class NewDataFrame(pd.DataFrame):
         if caller != '_rollback':
             new = not key in self.columns.values
             history_value = value if new else self.loc[:, key].values
-            #print(f'history_value = {history_value}')
             self.__save_history('__setitem__', key, history_value, new)
         super().__setitem__(key, value)
-
-    def __getitem__(self, key):
-        print(f'__getitem__ : {key}')
-        return super().__getitem__(key)
 
     def __delitem__(self, key):
         caller = inspect.stack()[1][3]
         if caller != '_rollback':
             self.__save_history('__delitem__', key,)
         super().__delitem__(key)
-
 
     def drop(
         self, 
@@ -82,7 +75,6 @@ class NewDataFrame(pd.DataFrame):
         except ValueError as e:
             print(e)
     
-
     def __save_history(self, method_name, *args):
         self._history.push((method_name, *copy.deepcopy(args)))
 
@@ -105,7 +97,6 @@ class DataPreparingController(NewDataFrame):
     def __getattr__(self, name):
         print(f'__setattr__ {name} : DPC')
         return super().__getattr__(name)
-
 
     def set_history_len(self, buffer_len: int):
         '''
@@ -160,8 +151,10 @@ class DataPreparingController(NewDataFrame):
                 self.data[columns] = values
 
             elif method == '__remove_outliers__':
-                rows = np.squeeze(np.array(args))
-                rows = pd.DataFrame(rows, columns = self.data.columns)
+                rows = pd.DataFrame(
+                                np.squeeze(args), 
+                                columns = self.data.columns)
+                       
                 self.data = pd.concat([self.data, rows], axis = 0)
                 self._history.rpop()
 
@@ -170,7 +163,6 @@ class DataPreparingController(NewDataFrame):
         except AttributeError as e:
             print(e)
         
-
     @classmethod
     def iqr_outliers_percent(
         cls,   
@@ -180,8 +172,8 @@ class DataPreparingController(NewDataFrame):
     ) -> tp.List[str]:
         '''
         Description:
-            Метод выводит процент выбросов в столбцах columns матрицы признаков df
-            Может вызываться как от класса, так и от объекта класса
+            Метод выводит процент выбросов в столбцах columns матрицы признаков df.
+            Может вызываться как от класса, так и от объекта класса.
 
         Args:
             df (pd.DataFrame): матрица признаков
@@ -277,7 +269,6 @@ class DataPreparingController(NewDataFrame):
         except ValueError as e:
             print(e)
 
-
     @classmethod
     def missing_values_table(
         cls, 
@@ -285,7 +276,8 @@ class DataPreparingController(NewDataFrame):
     ) -> pd.DataFrame:
         '''
         Description:
-            Метод вычисляет процент пропущенных значений в каждом столбце
+            Метод вычисляет процент пропущенных значений в каждом столбце, \
+            если не указан df, то вычисляется для поля объекта data 
         Args:
             df (pd.DataFrame): матрица признаков
         Returns:
@@ -302,7 +294,22 @@ class DataPreparingController(NewDataFrame):
         except TypeError as e:
             print(e)
 
-    def get_data(self) -> pd.DataFrame:
+    def get_data(
+        self, 
+        copy = True
+    ) -> tp.Union[pd.DataFrame, NewDataFrame]:
+        '''
+        Description:
+            Метод возвращает в зависимости от флага copy либо ссылку на self.data, либо копию.
+        
+        Args:
+            copy (bool): флаг, True -> возвращаем копию, иначе  - ссылку
+        
+        Returns:
+            df (pd.DataFrame, NewDataFrame): копия или ссылка на self.data
+        '''
+        if copy:
+          return pd.DataFrame(self.data.copy())
         return self.data
 
     def history(self):

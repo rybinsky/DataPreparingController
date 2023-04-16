@@ -13,10 +13,10 @@ class TestDPC(unittest.TestCase):
 
 
 
-data = np.array([(1, 2, 3), (4, 5, 6), (7, 8, 9)],
+data = np.array([(1, 2, 3), (4, 5, 6), (7, 8, 9), (1, 2, 1000), (4, 10000, 5), (6, 8, 10)],
                 dtype=[("a", "i4"), ("b", "i4"), ("c", "i4")])
 
-df3 = pd.DataFrame(data, columns=['c', 'a'])
+df3 = pd.DataFrame(data, columns=['c', 'a', 'b'])
 print(df3['a'])
 print('========================================1')
 
@@ -28,6 +28,15 @@ dpc.data['a'] = dpc.data['a'] * 2
 print('========================================4')
 dpc.remove_outliers(df = dpc.data)
 print('========================================5')
+dpc._history.print_dll()
+print('========================================6')
+print(dpc.data)
+print('========================================7')
+dpc._rollback()
+print('========================================8')
+print(dpc.data)
+print('========================================9')
+dpc._history.print_dll()
 # dpc.data.drop(columns = 'c', axis = 1, inplace = True)
 # print('========================================6')
 # dpc.data['yyy'] = [2, 2, 2]

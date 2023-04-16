@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import copy
 import inspect
+import time
 
 from utils import (
     _iqr_outliers_percent,
@@ -17,6 +18,11 @@ class NewDataFrame(pd.DataFrame):
     '''
     Класс позволяет возвращать измененный pd.DataFrame
     '''
+    __NO_HISTORY_METHODS = {
+        'remove_outliers',
+        '_rollback'
+    }
+
     _history = DoublyLinkedList(max_size = DEFAULT_HISTORY_LEN)
 
     def __init__(self, *args, **kwargs):
@@ -25,14 +31,17 @@ class NewDataFrame(pd.DataFrame):
 
     def __setattr__(self, name, value):
         caller = inspect.stack()[1][3]
-        print(f'__setattr__: {name} : {value}, ')
-        if name != '_mgr' and caller != '_rollback':
+        print(f'__setattr__: {name} : {value}, {caller} NewDF')
+        if name != '_mgr' and caller not in self.__NO_HISTORY_METHODS:
             self.__save_history('__setattr__', name, value)
         super().__setattr__(name, value)
 
+    def __getattr__(self, name):
+        return super().__getattr__(name)
+
     def __setitem__(self, key, value):
         caller = inspect.stack()[1][3]
-        print(f'__setitem__: {key} : {value}')
+        print(f'__setitem__: {key} : {value}, {caller}')
         if caller != '_rollback':
             new = not key in self.columns.values
             history_value = value if new else self.loc[:, key].values
@@ -76,6 +85,9 @@ class NewDataFrame(pd.DataFrame):
     
 
     def __save_history(self, method_name, *args):
+        print('hist')
+        time.sleep(2)
+        print(args, type(args))
         self._history.push((method_name, *copy.deepcopy(args)))
 
 
@@ -91,8 +103,14 @@ class DataPreparingController(NewDataFrame):
         self.data = NewDataFrame(data)
 
     def __setattr__(self, name, value):
-        #print(f'__setattr__ {name} : {value} DPC')
-        super().__setattr__(name, value)   
+        print(f'__setattr__ {name} : {value} DPC')
+        super().__setattr__(name, value)
+
+    def __getattr__(self, name):
+        print(f'__setattr__ {name} : DPC')
+        time.sleep(3)
+        return super().__getattr__(name)
+
 
     def set_history_len(self, buffer_len: int):
         '''
@@ -141,6 +159,15 @@ class DataPreparingController(NewDataFrame):
             elif method == '__drop__':
                 columns, values = args
                 self.data[columns] = values
+            elif method == '__remove_outliers__':
+                rows = args
+                rows = np.squeeze(np.array(rows))
+                rows = pd.DataFrame(rows, columns = self.data.columns)
+                print(rows, self.data.columns)
+                self.data = pd.concat([self.data, rows], axis = 0)
+                # self.data.append(
+                #             pd.Series(rows, index = self.data.columns), 
+                #             ignore_index = True)
 
         except IndexError as e:
             print(e)
@@ -218,15 +245,17 @@ class DataPreparingController(NewDataFrame):
                 raise ValueError(f"Неверное значение 'drop_persent' {drop_percent}, \
                                 должно быть на промежутке [0, 100]")
             #print(1)
-            if not isinstance(df, NewDataFrame):
+            time.sleep(2)
+            if isinstance(df, NewDataFrame):
                 df = self.data.copy()
             df = pd.DataFrame(df)
 
             if columns == 'all':
                 columns = df.columns
-            #print(2)
-            cleaned_indexes = []
+            print(df)
             bounds = []
+            extra_records = None
+            time.sleep(2)
             for column in columns:
                 #print(3, column)
                 q1 = df[column].quantile(0.25)
@@ -235,23 +264,36 @@ class DataPreparingController(NewDataFrame):
                 lower_bound = q1 - threshold * iqr
                 upper_bound = q3 + threshold * iqr
                 bounds.append((lower_bound, upper_bound))
-            print(4, type(df), cleaned_indexes, bounds)
+            print(3)
+            time.sleep(2)
             for (lower_bound, upper_bound), column in zip(bounds, columns):
-                print(1)
+                #print(1)
                 outliers = df[(df[column] < lower_bound) | (df[column] > upper_bound)][column]
                 outliers = outliers.sort_values()    
                 n_to_remove = int(len(outliers) * drop_percent / 100)
-                
                 to_remove = outliers.head(n_to_remove).index.union(outliers.tail(n_to_remove).index)
-                #cleaned_col = df[column].drop(to_remove)
-                cleaned_indexes.append(to_remove)
-                #df = df.loc[cleaned_col.index].copy()
-                #df.reset_index(drop = True, inplace = True)
+
+                if extra_records is None:
+                    extra_records = df.loc[to_remove].copy()
+                else:
+                    extra_records = pd.concat([extra_records, df.loc[to_remove].copy()], axis = 0)
+
+                cleaned_col = df[column].drop(to_remove)
+                df = df.loc[cleaned_col.index].copy()
             
-            self._history.push('_-remove_out__', df.loc[cleaned_indexes].copy())
-            df = df.drop(labels = cleaned_indexes, axis = 0)
+            print(extra_records, type(extra_records))
+            print(4)
+            time.sleep(2)
+            super()._NewDataFrame__save_history('__remove_outliers__', extra_records.values)
+            #self._history.push(('__remove_outliers__', extra_records.values))
+            print(5000)
+            time.sleep(2)
             df.reset_index(drop = True, inplace = True)
+            print(3)
+            time.sleep(2)
             self.data = df.copy()
+            self._history.rpop() # удалим то что положили выше
+
             return df
             
         except ValueError as e:

@@ -15,7 +15,7 @@ DEFAULT_HISTORY_LEN = 5
 
 class NewDataFrame(pd.DataFrame):
     '''
-    Класс позволяет возвращать измененный pd.DataFrame
+    Modified pd.DataFrame with support for change history.
     '''
     __NO_HISTORY_METHODS = {
         'remove_outliers',
@@ -66,7 +66,7 @@ class NewDataFrame(pd.DataFrame):
         caller = inspect.stack()[1][3]
         try:
             if axis == 0:
-                raise ValueError(f"Пока не реализовано удаление строк!")
+                raise ValueError(f"Deletion of rows is not yet implemented!")
         
             elif axis == 1:
                 if caller != '_rollback':
@@ -81,8 +81,7 @@ class NewDataFrame(pd.DataFrame):
 
 class DataPreparingController(NewDataFrame):
     '''
-    Этот класс помогает упрощать предобработку данных и
-    делать из них статистические выводы.
+    This class helps to simplify data preprocessing and make statistical inferences from the data.
     '''
     __MAX_HISTORY_LEN = 10
     data : NewDataFrame = None
@@ -101,30 +100,30 @@ class DataPreparingController(NewDataFrame):
     def set_history_len(self, buffer_len: int):
         '''
         Description:
-            Метод класса, устанавливающий длину хранящейся истории изменений
+            Set the maximum length of the stored history of changes.
         
         Args:
-            buffer_len (int): новая длина истории
+            buffer_len (int): maximum length of the history list.
         '''
         try:
             if buffer_len > self.__MAX_HISTORY_LEN:
-                raise ValueError(f"Слишком большое значение {buffer_len}, \
-                                максимальная длина должна быть <={self.__MAX_HISTORY_LEN}!")
+                raise ValueError(f"Very big value {buffer_len}, \
+                                max len must be <={self.__MAX_HISTORY_LEN}!")
             else:
                 self._history.resize(buffer_len)
-                print(f'Теперь будет храниться история на {self._history.__len__()} шагов!')
+                print(f'Now the history will be stored for {self._history.__len__()} steps!')
         except ValueError as e:
             print(e)
 
     def _rollback(self):
         '''
         Description:
-            Откат последней продецуры изменения данных
+            Roll back the last data manipulation procedure
         '''
         try:
             #print('_rollback :')
             if self._history.__len__() <= 1:
-                raise IndexError('Нет истории, чтобы сделать возврат!')
+                raise IndexError('No history to perform rollback!')
             
             method, *args = self._history.rpop()
 
@@ -144,7 +143,7 @@ class DataPreparingController(NewDataFrame):
                 if name == 'data':
                     self.data = value
                 else:
-                    raise AttributeError(f"Неизвестный аттрибут :{name} !")
+                    raise AttributeError(f"Object has no attribute :{name} !")
                 
             elif method == '__drop__':
                 columns, values = args
@@ -172,21 +171,23 @@ class DataPreparingController(NewDataFrame):
     ) -> tp.List[str]:
         '''
         Description:
-            Метод выводит процент выбросов в столбцах columns матрицы признаков df.
-            Может вызываться как от класса, так и от объекта класса.
+            This method prints the percentage of outliers in the columns \
+            specified in the columns parameter of the feature matrix df. \
+            It can be called both from the class and from an instance of the class.
 
         Args:
-            df (pd.DataFrame): матрица признаков
-            columns (list): колонки, из которых удалять выбросы
-            threshold (float): порог удаления выбросов из drop_cols в процентах
-
+            df (pd.DataFrame): feature matrix
+            columns (list): columns to remove outliers from
+            threshold (float): threshold for removing outliers from drop_cols in percentage
+        
         Returns:
-            drop_cols (list): список колонок, откуда можно удалить выбросы
+            drop_cols (list): a list of columns from which outliers can be removed.
         '''
         try:
             if threshold < 0 or threshold > 100:
-                raise ValueError(f"Неверное значение 'threshold' {threshold}, \
-                                должно быть на интервале [0, 100]!")
+                raise ValueError(f"Invalid 'threshold' value {threshold}, \
+                                 should be in the range [0, 100]!")
+
 
             if isinstance(pd.DataFrame, df):
                 if columns == 'all':
@@ -197,8 +198,8 @@ class DataPreparingController(NewDataFrame):
                     columns = cls.data.columns
                 return _iqr_outliers_percent(cls.data, columns, threshold)
             else:
-                raise TypeError("'df' должен быть либо None и метод должен вызываться от объекта класса, \
-                                либо pd.DataFrame и метод вызывается от имени класса")
+                raise TypeError("'df' should either be None and the method should be called from an instance of the class, \
+                                or pd.DataFrame and the method should be called from the class.")
             
         except TypeError as e:
             print(e)
@@ -213,16 +214,15 @@ class DataPreparingController(NewDataFrame):
     ) -> pd.DataFrame:
         '''
         Description:
-            Метод удаляет строки, в которых есть выбросы, \
-            определенные по методу Тьюки (межквартильное расстояние).
-
+            The method removes rows that contain outliers determined by Tukey's method (interquartile range).
+        
         Args:
-            columns (list): список числовых признаков
-            threshold (float): порог в методе Тьюки
-            drop_percent (float): доля удаляемых выбросов
-
+            columns (list): list of numeric features
+            threshold (float): threshold in Tukey's method
+            drop_percent (float): percentage of outliers to drop
+            
         Returns:
-            df (pd.DataFrame): матрица признаков, очищенные от какой-то доли выбросов
+            df (pd.DataFrame): feature matrix with some fraction of outliers removed.
         '''
         try:
             if threshold < 0:
@@ -276,12 +276,14 @@ class DataPreparingController(NewDataFrame):
     ) -> pd.DataFrame:
         '''
         Description:
-            Метод вычисляет процент пропущенных значений в каждом столбце, \
-            если не указан df, то вычисляется для поля объекта data 
+            The method calculates the percentage of missing values in each column of the feature matrix. 
+            If df is not specified, it is computed for the 'data' object field.
+            
         Args:
-            df (pd.DataFrame): матрица признаков
+            df (pd.DataFrame): feature matrix
+            
         Returns:
-            mis_val_table_ren_columns (pd.DataFrame): матрица информации
+            mis_val_table_ren_columns (pd.DataFrame): dataframe with the missing value statistics.
         '''
         try:
             if isinstance(pd.DataFrame, df) or isinstance(NewDataFrame, df):
@@ -289,7 +291,7 @@ class DataPreparingController(NewDataFrame):
             elif df is None:
                 return _missing_values_table(cls.data)
             else:
-                raise TypeError("'df' должен быть либо None, либо pd.DataFrame")
+                raise TypeError("'df' should be either None or pd.DataFrame.")
             
         except TypeError as e:
             print(e)
@@ -300,13 +302,13 @@ class DataPreparingController(NewDataFrame):
     ) -> tp.Union[pd.DataFrame, NewDataFrame]:
         '''
         Description:
-            Метод возвращает в зависимости от флага copy либо ссылку на self.data, либо копию.
-        
+            The method returns either a reference to self.data or a copy, depending on the copy flag.
+
         Args:
-            copy (bool): флаг, True -> возвращаем копию, иначе  - ссылку
-        
+            copy (bool): a flag, True -> return a copy of self.data, otherwise -> a reference on self.data
+
         Returns:
-            df (pd.DataFrame, NewDataFrame): копия или ссылка на self.data
+            df (pd.DataFrame, NewDataFrame): a copy or a reference to self.data
         '''
         if copy:
           return pd.DataFrame(self.data.copy())

@@ -14,7 +14,7 @@ class DoublyLinkedList:
     def __init__(self, max_size = 5):
         try:
             if max_size <= 0:
-                raise ValueError(f"'max_size' должен быть больше 0")
+                raise ValueError(f"'max_size' must be > 0")
             self.head = None
             self.tail = None
             self.size = 0
@@ -31,7 +31,7 @@ class DoublyLinkedList:
     def __lpush(self, value):
         try:
             if self.size == self.max_size:
-                raise ValueError(f"Достигнут максимальный размер списка!")
+                raise ValueError(f"The maximum size of the list has been reached!")
             new_node = Node(value)
             if self.is_empty():
                 self.head = self.tail = new_node
@@ -62,7 +62,7 @@ class DoublyLinkedList:
 
     def pop(self):
         if self.is_empty():
-            raise Exception("Список пуст!")
+            raise Exception("Empty DLL!")
         removed_node = self.head
         if self.head == self.tail:
             self.head = self.tail = None
@@ -74,7 +74,7 @@ class DoublyLinkedList:
 
     def rpop(self):
         if self.is_empty():
-            raise Exception("Список пуст!")
+            raise Exception("Empty DLL!")
         removed_node = self.tail
         if self.head == self.tail:
             self.head = self.tail = None
@@ -86,7 +86,7 @@ class DoublyLinkedList:
     
     def resize(self, new_max_size):
         '''
-        Изменяет МАКСИМАЛЬНЫЙ допустимый размер списка
+        Changes the MAXIMUM allowable size of the list.
         '''
         if self.size < new_max_size:
             pass
@@ -106,7 +106,7 @@ class DoublyLinkedList:
 
 def _iqr_outliers_percent(df, columns, threshold):
     '''
-    Приватная функция выводит процент выбросов в столбцах columns матрицы признаков df
+    This private function calculates the percentage of outliers in the columns of the feature matrix 'df'.
     '''
     drop_cols = []
     
@@ -129,7 +129,7 @@ def _iqr_outliers_percent(df, columns, threshold):
 
 def _missing_values_table(df):
     '''
-    Приватный вычисляет процент пропущенных значений в каждом столбце
+    This private method calculates the percentage of missing values in each column of the feature matrix.    
     '''
     mis_val = df.isnull().sum()
     mis_val_percent = 100 * df.isnull().sum() / len(df)

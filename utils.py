@@ -104,7 +104,7 @@ class DoublyLinkedList:
 
 
 
-def _iqr_outliers_percent(df: pd.DataFrame, columns, threshold):
+def _iqr_outliers_percent(df, columns, threshold):
     '''
     Приватная функция выводит процент выбросов в столбцах columns матрицы признаков df
     '''
@@ -127,7 +127,7 @@ def _iqr_outliers_percent(df: pd.DataFrame, columns, threshold):
     return drop_cols
 
 
-def _missing_values_table(df: pd.DataFrame):
+def _missing_values_table(df):
     '''
     Приватный вычисляет процент пропущенных значений в каждом столбце
     '''

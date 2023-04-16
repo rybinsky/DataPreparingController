@@ -13,7 +13,7 @@ class TestDPC(unittest.TestCase):
 
 
 
-data = np.array([(1, 2, 3), (4, 5, 6), (7, 8, 9), (1, 2, 1000), (4, 10000, 5), (6, 8, 10)],
+data = np.array([(1, 2, None), (4, 5, 6), (7, None, 9), (1, 2, 1000), (4, 10000, 5), (6, 8, 10)],
                 dtype=[("a", "i4"), ("b", "i4"), ("c", "i4")])
 
 df3 = pd.DataFrame(data, columns=['c', 'a', 'b'])
@@ -36,7 +36,8 @@ dpc._rollback()
 print('========================================8')
 print(dpc.data)
 print('========================================9')
-dpc._history.print_dll()
+dpc.get_data()
+
 # dpc.data.drop(columns = 'c', axis = 1, inplace = True)
 # print('========================================6')
 # dpc.data['yyy'] = [2, 2, 2]

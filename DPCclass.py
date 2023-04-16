@@ -26,12 +26,11 @@ class NewDataFrame(pd.DataFrame):
     _history = DoublyLinkedList(max_size = DEFAULT_HISTORY_LEN)
 
     def __init__(self, *args, **kwargs):
-        #print('__init__NewDF')
         super().__init__(*args, **kwargs)
 
     def __setattr__(self, name, value):
         caller = inspect.stack()[1][3]
-        print(f'__setattr__: {name} : {value}, {caller}, класс caller_class = {type(self).__name__} NewDF')
+        print(f'__setattr__: {name} : {value}, {caller} NewDF')
         if name != '_mgr' and caller not in self.__NO_HISTORY_METHODS:
             self.__save_history('__setattr__', name, value)
         super().__setattr__(name, value)
@@ -41,7 +40,7 @@ class NewDataFrame(pd.DataFrame):
 
     def __setitem__(self, key, value):
         caller = inspect.stack()[1][3]
-        print(f'__setitem__: {key} : {value}, {caller}, класс caller_class = {type(self).__name__}')
+        print(f'__setitem__: {key} : {value}, {caller}')
         if caller != '_rollback':
             new = not key in self.columns.values
             history_value = value if new else self.loc[:, key].values
@@ -85,9 +84,6 @@ class NewDataFrame(pd.DataFrame):
     
 
     def __save_history(self, method_name, *args):
-        print('hist')
-        time.sleep(2)
-        print(args, type(args))
         self._history.push((method_name, *copy.deepcopy(args)))
 
 
@@ -108,7 +104,6 @@ class DataPreparingController(NewDataFrame):
 
     def __getattr__(self, name):
         print(f'__setattr__ {name} : DPC')
-        time.sleep(3)
         return super().__getattr__(name)
 
 
@@ -126,7 +121,7 @@ class DataPreparingController(NewDataFrame):
                                 максимальная длина должна быть <={self.__MAX_HISTORY_LEN}!")
             else:
                 self._history.resize(buffer_len)
-                print(f'Теперь будет храниться история на {self.__history.__len__()} шагов.')
+                print(f'Теперь будет храниться история на {self._history.__len__()} шагов!')
         except ValueError as e:
             print(e)
 
@@ -136,10 +131,12 @@ class DataPreparingController(NewDataFrame):
             Откат последней продецуры изменения данных
         '''
         try:
-            print('_rollback :')
-            if self._history.is_empty() or self._history.__len__() == 1:
+            #print('_rollback :')
+            if self._history.__len__() <= 1:
                 raise IndexError('Нет истории, чтобы сделать возврат!')
+            
             method, *args = self._history.rpop()
+
             if method == '__setitem__':
                 key, old_value, new = args
                 if new:
@@ -150,25 +147,23 @@ class DataPreparingController(NewDataFrame):
             elif method == '__delitem__':
                 key, value = args
                 self.data[key] = value
+
             elif method == '__setattr__':
                 name, value = args
                 if name == 'data':
                     self.data = value
                 else:
                     raise AttributeError(f"Неизвестный аттрибут :{name} !")
+                
             elif method == '__drop__':
                 columns, values = args
                 self.data[columns] = values
+
             elif method == '__remove_outliers__':
-                rows = args
-                rows = np.squeeze(np.array(rows))
+                rows = np.squeeze(np.array(args))
                 rows = pd.DataFrame(rows, columns = self.data.columns)
-                print(rows, self.data.columns)
                 self.data = pd.concat([self.data, rows], axis = 0)
-                #self.data.concat(rows, ignore_index = True)
-                # self.data.append(
-                #             pd.Series(rows, index = self.data.columns), 
-                #             ignore_index = True)
+                self._history.rpop()
 
         except IndexError as e:
             print(e)
@@ -179,13 +174,14 @@ class DataPreparingController(NewDataFrame):
     @classmethod
     def iqr_outliers_percent(
         cls,   
-        df: tp.Optional[pd.DataFrame],
+        df: tp.Optional[tp.Union[pd.DataFrame, NewDataFrame]],
         columns: tp.Union[str, tp.List[str]] = 'all', 
         threshold: tp.Union[int, float] = 10
     ) -> tp.List[str]:
         '''
         Description:
             Метод выводит процент выбросов в столбцах columns матрицы признаков df
+            Может вызываться как от класса, так и от объекта класса
 
         Args:
             df (pd.DataFrame): матрица признаков
@@ -219,7 +215,6 @@ class DataPreparingController(NewDataFrame):
     
     def remove_outliers(
         self, 
-        df: tp.Optional[NewDataFrame],
         columns: tp.Union[str, tp.List[str]] = 'all',
         threshold: tp.Union[int, float] = 1.5, 
         drop_percent: tp.Union[int, float] = 100          
@@ -227,10 +222,9 @@ class DataPreparingController(NewDataFrame):
         '''
         Description:
             Метод удаляет строки, в которых есть выбросы, \
-            определенные по методу Тьюки (межквартильное расстояние)
+            определенные по методу Тьюки (межквартильное расстояние).
 
         Args:
-            df (pd.DataFrame): матрица признаков
             columns (list): список числовых признаков
             threshold (float): порог в методе Тьюки
             drop_percent (float): доля удаляемых выбросов
@@ -245,30 +239,22 @@ class DataPreparingController(NewDataFrame):
             if drop_percent < 0 or drop_percent > 100:
                 raise ValueError(f"Неверное значение 'drop_persent' {drop_percent}, \
                                 должно быть на промежутке [0, 100]")
-            #print(1)
-            time.sleep(2)
-            if isinstance(df, NewDataFrame):
-                df = self.data.copy()
-            df = pd.DataFrame(df)
+
+            df = pd.DataFrame(self.data.copy())
 
             if columns == 'all':
                 columns = df.columns
-            print(df)
+
             bounds = []
             extra_records = None
-            time.sleep(2)
             for column in columns:
-                #print(3, column)
-                q1 = df[column].quantile(0.25)
-                q3 = df[column].quantile(0.75)
+                q1, q3 = df[column].quantile(0.25), df[column].quantile(0.75)
                 iqr = q3 - q1
-                lower_bound = q1 - threshold * iqr
-                upper_bound = q3 + threshold * iqr
+                lower_bound, upper_bound = q1 - threshold * iqr, q3 + threshold * iqr
                 bounds.append((lower_bound, upper_bound))
-            print(3)
-            time.sleep(2)
+
             for (lower_bound, upper_bound), column in zip(bounds, columns):
-                #print(1)
+
                 outliers = df[(df[column] < lower_bound) | (df[column] > upper_bound)][column]
                 outliers = outliers.sort_values()    
                 n_to_remove = int(len(outliers) * drop_percent / 100)
@@ -282,19 +268,10 @@ class DataPreparingController(NewDataFrame):
                 cleaned_col = df[column].drop(to_remove)
                 df = df.loc[cleaned_col.index].copy()
             
-            print(extra_records, type(extra_records))
-            print(4)
-            time.sleep(2)
             super()._NewDataFrame__save_history('__remove_outliers__', extra_records.values)
-            #self._history.push(('__remove_outliers__', extra_records.values))
-            print(5000)
-            time.sleep(2)
             df.reset_index(drop = True, inplace = True)
-            print(3)
-            time.sleep(2)
-            self.data = df.copy()
+            self.data = df
             self._history.rpop() # удалим то что положили выше
-
             return df
             
         except ValueError as e:
@@ -302,7 +279,10 @@ class DataPreparingController(NewDataFrame):
 
 
     @classmethod
-    def missing_values_table(cls, df: tp.Optional[pd.DataFrame]) -> pd.DataFrame:
+    def missing_values_table(
+        cls, 
+        df: tp.Optional[tp.Union[pd.DataFrame, NewDataFrame]]
+    ) -> pd.DataFrame:
         '''
         Description:
             Метод вычисляет процент пропущенных значений в каждом столбце
@@ -312,7 +292,7 @@ class DataPreparingController(NewDataFrame):
             mis_val_table_ren_columns (pd.DataFrame): матрица информации
         '''
         try:
-            if isinstance(pd.DataFrame, df):
+            if isinstance(pd.DataFrame, df) or isinstance(NewDataFrame, df):
                 return _missing_values_table(df)
             elif df is None:
                 return _missing_values_table(cls.data)
@@ -322,7 +302,10 @@ class DataPreparingController(NewDataFrame):
         except TypeError as e:
             print(e)
 
-    def _print_history(self):
+    def get_data(self) -> pd.DataFrame:
+        return self.data
+
+    def history(self):
         self._history.print_dll()
     
 

@@ -62,22 +62,20 @@ import pandas as pd
 # df.iloc[1, 1] = 1
 # print(df)
 
-import pandas as pd
-import numpy as np
+import inspect
 
-# Создаем DataFrame с тремя столбцами
-df1 = pd.DataFrame({'A': [1, 2, 3], 'B': [4, 5, 6], 'C': [7, 8, 9]})
+class Parent:
+    def some_method(self):
+        caller_class = type(self).__name__
+        caller_method = inspect.currentframe().f_back.f_code.co_name
+        print(f"Method {caller_method} of class {caller_class} called some_method")
 
-# Создаем новый массив numpy
-new_data = np.array([[1000, 2, 2], [5, 8, 10000]])
-print(new_data)
-# Преобразуем массив в DataFrame
-df2 = pd.DataFrame(new_data, columns=['A', 'B', 'C'])
-# Добавляем новый DataFrame к старому
-result = pd.concat([df1, df2], axis=0)
+class Child(Parent):
+    def another_method(self):
+        super().some_method()
 
-print(result)
-
+c = Child()
+c.another_method() 
 
 
 

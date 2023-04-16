@@ -31,7 +31,7 @@ class NewDataFrame(pd.DataFrame):
 
     def __setattr__(self, name, value):
         caller = inspect.stack()[1][3]
-        print(f'__setattr__: {name} : {value}, {caller} NewDF')
+        print(f'__setattr__: {name} : {value}, {caller}, класс caller_class = {type(self).__name__} NewDF')
         if name != '_mgr' and caller not in self.__NO_HISTORY_METHODS:
             self.__save_history('__setattr__', name, value)
         super().__setattr__(name, value)
@@ -41,7 +41,7 @@ class NewDataFrame(pd.DataFrame):
 
     def __setitem__(self, key, value):
         caller = inspect.stack()[1][3]
-        print(f'__setitem__: {key} : {value}, {caller}')
+        print(f'__setitem__: {key} : {value}, {caller}, класс caller_class = {type(self).__name__}')
         if caller != '_rollback':
             new = not key in self.columns.values
             history_value = value if new else self.loc[:, key].values
@@ -165,6 +165,7 @@ class DataPreparingController(NewDataFrame):
                 rows = pd.DataFrame(rows, columns = self.data.columns)
                 print(rows, self.data.columns)
                 self.data = pd.concat([self.data, rows], axis = 0)
+                #self.data.concat(rows, ignore_index = True)
                 # self.data.append(
                 #             pd.Series(rows, index = self.data.columns), 
                 #             ignore_index = True)

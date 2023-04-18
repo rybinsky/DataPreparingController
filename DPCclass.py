@@ -71,7 +71,9 @@ class NewDataFrame(pd.DataFrame):
             elif axis == 1:
                 if caller != '_rollback':
                     self.__save_history('__drop__', columns, self.loc[:, columns].copy())
-            super().drop(labels = labels, axis = axis, index = index, columns = columns, level = level, inplace = inplace, errors = errors)
+
+            super().drop(labels = labels, axis = axis, index = index, columns = columns, 
+                        level = level, inplace = inplace, errors = errors)
         except ValueError as e:
             print(e)
     
@@ -316,6 +318,11 @@ class DataPreparingController(NewDataFrame):
 
     def history(self):
         self._history.print_dll()
+
+
+
+class FeatureController(DataPreparingController):
+    pass
     
 
 
@@ -333,9 +340,7 @@ class DataPreparingController(NewDataFrame):
     
 и ещё много-много всего
 
-
 Сделать:
-1) Вынос приватных методов в отдельный файл
 
 2) Проверить, что везде копируется где надо, и где не надо нет
 
@@ -347,6 +352,131 @@ df[col] = new_col
 
 df.drop(колонки)
 
-
-
 '''
+
+import pandas as pd
+
+def analyze_feature(feature_name, target_name, dataset):
+    '''
+    Эта функция принимает три аргумента: feature_name - название столбца, \
+    который нужно проанализировать, target_name - название столбца с целевой переменной, \
+    и dataset - датафрейм, содержащий оба этих столбца.
+
+    Функция выводит корреляцию между столбцом feature_name и столбцом target_name, \
+    число уникальных значений в столбце feature_name, информацию о частоте появления \
+    каждого значения в столбце feature_name и распределение этого столбца.
+
+    Эта информация может помочь принять решение о том, \
+    стоит ли удалить столбец feature_name из датасета или оставить его.
+    '''
+    # проверяем, есть ли столбец с названием feature_name в датасете
+    if feature_name not in dataset.columns:
+        print(f"{feature_name} not found in the dataset!")
+        return
+    
+    # проверяем, есть ли столбец с названием target_name в датасете
+    if target_name not in dataset.columns:
+        print(f"{target_name} not found in the dataset!")
+        return
+    
+    # выводим корреляцию между столбцами feature_name и target_name
+    corr = dataset[[feature_name, target_name]].corr().iloc[0, 1]
+    print(f"Correlation between {feature_name} and {target_name}: {corr:.2f}")
+    
+    # выводим число уникальных значений в столбце feature_name
+    unique_values = dataset[feature_name].nunique()
+    print(f"Number of unique values in {feature_name}: {unique_values}")
+    
+    # выводим информацию о частоте появления каждого значения в столбце feature_name
+    value_counts = dataset[feature_name].value_counts(normalize=True)
+    print(f"Value counts for {feature_name}:")
+    print(value_counts)
+    
+    # выводим распределение столбца feature_name
+    dataset[[feature_name]].hist()
+
+
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+# загрузка данных
+df = sns.load_dataset("tips")
+
+# построение боксплотов для всех числовых признаков
+for col in df.select_dtypes(include = ['float', 'int']):
+    sns.boxplot(x = df[col])
+    plt.title(col)
+    plt.show()
+
+
+
+
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+def plot_density(df):
+    num_cols = df.select_dtypes(include = 'number').columns
+    num_cols_count = len(num_cols)
+    fig, axes = plt.subplots(nrows = 1, ncols = 4, figsize = (20, 5))
+    for i, col in enumerate(num_cols):
+        sns.kdeplot(df[col], ax = axes[i % 4], shade = True, legend = False)
+        axes[i % 4].set_title(f'Density Plot for {col}')
+        axes[i % 4].set_xlabel(col)
+    plt.tight_layout()
+    plt.show()
+
+# Пример использования функции
+plot_density(df)
+
+
+import numpy as np
+import scipy.stats as stats
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+def analyze_column(column):
+    """
+    Функция анализирует заданный столбец и выводит гистограмму распределения, график ядерной оценки,
+    результаты теста Шапиро-Уилка и значения основных статистических показателей.
+    """
+    # Строим гистограмму и график ядерной оценки
+    sns.histplot(column, kde = True)
+    sns.kdeplot(column)
+
+    # Вычисляем статистические показатели
+    mean = np.mean(column)
+    median = np.median(column)
+    std = np.std(column)
+    skewness = stats.skew(column)
+    kurtosis = stats.kurtosis(column)
+
+    # Выводим значения статистических показателей
+    print(f"Mean: {mean:.2f}")
+    print(f"Median: {median:.2f}")
+    print(f"Standard deviation: {std:.2f}")
+    print(f"Skewness: {skewness:.2f}")
+    print(f"Kurtosis: {kurtosis:.2f}")
+
+    # Проверяем распределение на нормальность с помощью теста Шапиро-Уилка
+    w, p_value = stats.shapiro(column)
+    alpha = 0.05
+    if p_value > alpha:
+        print("Distribution is normal (fail to reject H0)")
+    else:
+        print("Distribution is not normal (reject H0)")
+
+    # Проверяем отклонение распределения от нормального с помощью коэффициентов асимметрии и эксцесса
+    if abs(skewness) < 0.5 and abs(kurtosis) < 0.5:
+        print("Distribution is approximately normal")
+    else:
+        print("Distribution is not approximately normal")
+
+    # Добавляем подписи осей
+    plt.xlabel("Value")
+    plt.ylabel("Frequency")
+
+    # Отображаем графики
+    plt.show()
+
+
+

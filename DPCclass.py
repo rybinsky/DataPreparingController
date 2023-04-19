@@ -308,6 +308,45 @@ class DataPreparingController(NewDataFrame):
         except TypeError as e:
             print(e)
 
+    def analyze_feature(self, feature_name: str, target_name: str):
+        '''
+        Description:
+            The function outputs a correlation between the feature_name column and the target_name column, \
+            the number of unique values in the feature_name column, information about the frequency of occurrence \
+            each value in the feature_name column and the distribution of that column.
+            This information can help you decide \
+            whether to remove the feature_name column from the dataset or leave it.
+
+        Args:
+            feature_name (str): the name of the column to be analyzed
+            target_name (str):  the name of the column with the target variable
+        '''
+        try:
+            # check if there is a column with the name feature_name in the dataset
+            if feature_name not in self.data.columns:
+                raise NameError(f"{feature_name} not found in the dataset!")
+            
+            # check if there is a column with the name target_name in the dataset
+            if target_name not in self.data.columns:
+                raise NameError(f"{target_name} not found in the dataset!")
+            
+            # print the correlation between the feature_name and target_name columns
+            corr = self.data[[feature_name, target_name]].corr().iloc[0, 1]
+            print(f"Correlation between {feature_name} and {target_name}: {corr:.2f}")
+            
+            unique_values = self.data[feature_name].nunique()
+            print(f"Number of unique values in {feature_name}: {unique_values}")
+            
+            value_counts = self.data[feature_name].value_counts(normalize = True)
+            print(f"Value counts for {feature_name}:")
+            print(value_counts)
+            
+            # print the distribution of the feature_name column
+            self.data[[feature_name]].hist()
+        
+        except NameError as e:
+            print(e)
+
     def get_data(
         self, 
         copy = True
@@ -329,11 +368,6 @@ class DataPreparingController(NewDataFrame):
     def history(self):
         self._history.print_dll()
 
-
-
-class FeatureController(DataPreparingController):
-    pass
-    
 
 
 '''
@@ -363,49 +397,6 @@ df[col] = new_col
 df.drop(колонки)
 
 '''
-
-import pandas as pd
-
-def analyze_feature(feature_name, target_name, dataset):
-    '''
-    Эта функция принимает три аргумента: feature_name - название столбца, \
-    который нужно проанализировать, target_name - название столбца с целевой переменной, \
-    и dataset - датафрейм, содержащий оба этих столбца.
-
-    Функция выводит корреляцию между столбцом feature_name и столбцом target_name, \
-    число уникальных значений в столбце feature_name, информацию о частоте появления \
-    каждого значения в столбце feature_name и распределение этого столбца.
-
-    Эта информация может помочь принять решение о том, \
-    стоит ли удалить столбец feature_name из датасета или оставить его.
-    '''
-    # проверяем, есть ли столбец с названием feature_name в датасете
-    if feature_name not in dataset.columns:
-        print(f"{feature_name} not found in the dataset!")
-        return
-    
-    # проверяем, есть ли столбец с названием target_name в датасете
-    if target_name not in dataset.columns:
-        print(f"{target_name} not found in the dataset!")
-        return
-    
-    # выводим корреляцию между столбцами feature_name и target_name
-    corr = dataset[[feature_name, target_name]].corr().iloc[0, 1]
-    print(f"Correlation between {feature_name} and {target_name}: {corr:.2f}")
-    
-    # выводим число уникальных значений в столбце feature_name
-    unique_values = dataset[feature_name].nunique()
-    print(f"Number of unique values in {feature_name}: {unique_values}")
-    
-    # выводим информацию о частоте появления каждого значения в столбце feature_name
-    value_counts = dataset[feature_name].value_counts(normalize=True)
-    print(f"Value counts for {feature_name}:")
-    print(value_counts)
-    
-    # выводим распределение столбца feature_name
-    dataset[[feature_name]].hist()
-
-
 import seaborn as sns
 import matplotlib.pyplot as plt
 

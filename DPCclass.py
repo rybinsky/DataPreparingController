@@ -117,47 +117,57 @@ class DataPreparingController(NewDataFrame):
         except ValueError as e:
             print(e)
 
-    def _rollback(self):
+    def _rollback(self, count_steps: int = 1) -> NewDataFrame:
         '''
         Description:
             Roll back the last data manipulation procedure
+        
+        Args:
+            count_steps (int): number of steps to rollback
+
+        Returns:
+            rollbacked_df (NewDataFrame): the feature matrix is n steps back
         '''
         try:
-            #print('_rollback :')
-            if self._history.__len__() <= 1:
-                raise IndexError('No history to perform rollback!')
-            
-            method, *args = self._history.rpop()
 
-            if method == '__setitem__':
-                key, old_value, new = args
-                if new:
-                    self.data.drop(columns = key, axis = 1, inplace = True)
-                else:
-                    self.data[key] = old_value
-
-            elif method == '__delitem__':
-                key, value = args
-                self.data[key] = value
-
-            elif method == '__setattr__':
-                name, value = args
-                if name == 'data':
-                    self.data = value
-                else:
-                    raise AttributeError(f"Object has no attribute :{name} !")
+            for _ in range(count_steps):
+                #print('_rollback :')
+                if self._history.__len__() <= 1:
+                    raise IndexError('No history to perform rollback!')
                 
-            elif method == '__drop__':
-                columns, values = args
-                self.data[columns] = values
+                method, *args = self._history.rpop()
 
-            elif method == '__remove_outliers__':
-                rows = pd.DataFrame(
-                                np.squeeze(args), 
-                                columns = self.data.columns)
-                       
-                self.data = pd.concat([self.data, rows], axis = 0)
-                self._history.rpop()
+                if method == '__setitem__':
+                    key, old_value, new = args
+                    if new:
+                        self.data.drop(columns = key, axis = 1, inplace = True)
+                    else:
+                        self.data[key] = old_value
+
+                elif method == '__delitem__':
+                    key, value = args
+                    self.data[key] = value
+
+                elif method == '__setattr__':
+                    name, value = args
+                    if name == 'data':
+                        self.data = value
+                    else:
+                        raise AttributeError(f"Object has no attribute :{name} !")
+                    
+                elif method == '__drop__':
+                    columns, values = args
+                    self.data[columns] = values
+
+                elif method == '__remove_outliers__':
+                    rows = pd.DataFrame(
+                                    np.squeeze(args), 
+                                    columns = self.data.columns)
+                        
+                    self.data = pd.concat([self.data, rows], axis = 0)
+                    self._history.rpop()
+
+            return self.data
 
         except IndexError as e:
             print(e)
